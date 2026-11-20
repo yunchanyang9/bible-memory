@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>말씀 암송장</title>
+<style id="skin">
+:root{color-scheme:light;--ink:#192c26;--green:#215442;--sub:#475f54;--line:#cfdbd2;--wash:#edf4ee;font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;color:var(--ink);background:#f3f6f3}
+*{box-sizing:border-box}body{margin:0}main{width:min(100%,730px);margin:auto;padding:clamp(16px,4vw,36px)}
+header{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--green);padding:4px 0 18px}
+h1{margin:0;font-family:"Nanum Myeongjo","Batang",serif;font-size:clamp(1.7rem,5vw,2.4rem);letter-spacing:-.055em}
+header span,.eyebrow{color:var(--green);font-size:.88rem;font-weight:700}
+.card{background:white;border:1px solid var(--line);border-radius:18px;margin:20px 0 12px;padding:clamp(18px,4vw,34px)}
+h2{font-size:1.45rem;line-height:1.4;margin:0 0 16px;letter-spacing:-.04em}p{line-height:1.65;margin:8px 0}small,.muted,.note{color:var(--sub);line-height:1.6;font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.wide{grid-column:1/-1}
+label{display:block;font-size:.91rem;font-weight:650}select,textarea,button,input{font:inherit}
+select,textarea{display:block;width:100%;background:#fff;color:var(--ink);border:1px solid #a5b8ac;border-radius:9px;margin-top:6px;padding:10px 12px}
+select{min-height:44px}textarea{font-weight:400;line-height:1.65;min-height:66px;resize:vertical}
+:focus-visible{outline:3px solid #337c9a;outline-offset:3px}
+button,.btn{border:1px solid var(--line);color:var(--green);background:white;padding:10px 16px;min-height:44px;border-radius:9px;font-weight:650;cursor:pointer}
+button:hover,.btn:hover{background:var(--wash)}button.primary{background:var(--green);color:#fff;border-color:var(--green)}button.primary:hover{background:#173c30}
+button:disabled{opacity:.55;cursor:wait}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.summary{margin-top:20px;padding:15px 17px;background:var(--wash);border-radius:10px}.summary strong{display:block}
+details{margin:12px 0;color:var(--sub)}summary{cursor:pointer;padding:6px 0;font-weight:650;line-height:1.5}
+a{color:var(--green);text-decoration-thickness:1px;text-underline-offset:3px}fieldset{border:0;margin:0;padding:0;min-width:0}
+progress{width:100%;height:8px;margin:6px 0 14px;accent-color:var(--green)}
+.line{display:grid;grid-template-columns:minmax(2.6em,auto) 1fr;gap:13px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+.num{font-size:.9rem;font-weight:700;color:var(--green)}.scripture{font-family:"Nanum Myeongjo","Batang",serif;font-size:clamp(1.15rem,3vw,1.45rem);line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
+.field{margin:13px 0}.note{padding:10px 13px;border-left:3px solid #a56b38;background:#fff4e5;color:#664322;white-space:pre-line;overflow-wrap:anywhere}
+.note:empty,.muted:empty{display:none}[hidden]{display:none!important}input[type=file]{display:block;width:100%;margin:8px 0}
+@media(max-width:420px){main{padding:14px}.card{padding:17px}.actions>*{flex:1 1 auto}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>말씀 암송장</h1><span>개역개정</span></header>
+<p id="storage" class="muted" role="status">저장한 본문을 확인하고 있어.</p>
+<fieldset id="app" disabled>
+<section id="setup" class="card">
+<h2 tabindex="-1">암송 범위</h2>
+<div class="grid">
+<label>구약·신약<select id="testament"><option value="old">구약</option><option value="new" selected>신약</option></select></label>
+<label>성경책<select id="book"></select></label>
+<label class="wide" id="chapterLabel"><span>장</span><select id="chapter"></select></label>
+<label>시작 절<select id="first"></select></label><label>마지막 절<select id="last"></select></label>
+</div>
+<div class="summary"><strong id="selection"></strong><small id="available"></small></div>
+<div class="actions"><button id="start" class="primary">암송 시작</button><button id="editSetup">본문 확인·수정</button></div>
+<details><summary>내 본문 파일 가져오기 · 보관하기</summary>
+<p class="muted">개역개정 UTF-8 TXT 파일은 한 줄에 ‘성경책 장:절 본문’ 형식으로 적어. 예를 들어 첫 칸에 ‘창 1:1’을 쓰고 한 칸 띄운 뒤 본문을 적으면 돼. 이미 직접 저장한 절은 유지해.</p>
+<label>내 개역개정 TXT 파일<input id="file" type="file" accept=".txt,.tsv,text/plain"></label>
+<div class="actions"><button id="exportText">보관할 본문 보기</button><button id="offline">PC용 앱 저장</button></div><p class="muted">PC용 앱은 등록한 본문을 포함한 HTML 파일로 열 수 있어.</p>
+<label id="copyLabel" hidden>아래 내용을 복사해 TXT 파일로 보관해.<textarea id="backup" readonly rows="5"></textarea></label>
+<p id="fileMessage" class="muted" role="status"></p>
+</details>
+</section>
+<section id="editor" class="card" hidden>
+<p id="editRef" class="eyebrow"></p><h2 tabindex="-1">채점 기준 본문</h2>
+<p><a id="official" href="https://bible.bskorea.or.kr/bible/NKRV/1TH.5" target="_blank" rel="noopener noreferrer">대한성서공회에서 이 장 열기</a></p>
+<p class="muted">아래에 절 번호를 빼고 본문만 적어. 저장한 띄어쓰기와 문장부호가 채점 기준이 돼.</p>
+<details id="bulkDetails"><summary>여러 절 한 번에 붙여넣기</summary>
+<label>번호가 있는 본문 또는 한 줄에 한 절<textarea id="bulk" rows="4"></textarea></label>
+<div class="actions"><button id="split">절별 입력칸에 나누기</button></div>
+</details>
+<div id="editFields"></div><p id="editError" class="note" role="alert"></p>
+<div class="actions"><button id="save" class="primary">저장하고 읽기</button><button id="cancel">취소</button></div>
+</section>
+<section id="practice" class="card" hidden>
+<p id="counter" class="eyebrow"></p><h2 id="practiceRef" tabindex="-1"></h2>
+<progress id="meter" aria-label="맞힌 누적 단계"></progress>
+<p id="feedback" class="note" role="status"></p><p id="instruction" class="muted"></p>
+<div id="lines"></div>
+<div class="actions"><button id="next" class="primary">다음 · 가리고 쓰기</button><button id="editMid">본문 수정</button><button id="choose">범위 선택</button></div>
+</section>
+</fieldset>
+<details><summary>본문 출처와 채점 방식</summary>
+<p class="muted">기본 두 절은 대한성서공회 『성경전서 개역한글판』 데살로니가전서 5장 16–17절에서 가져왔고, 개역개정과 글자·띄어쓰기가 같아. 다른 구절은 공식 본문을 확인해 직접 등록하거나 가지고 있는 개역개정 파일에서 가져올 수 있어.</p>
+<p class="muted">각 절은 따로 입력해. 앞뒤와 중간 공백, 글자, 문장부호까지 같아야 다음 단계로 넘어가.</p>
+<p class="muted"><a href="https://bible.bskorea.or.kr/bible/NKRV/1TH.5" target="_blank" rel="noopener noreferrer">기본 구절 확인</a> · <a href="https://www.bskorea.or.kr/bbs/board.php?bo_table=copyright_faq&amp;wr_id=9" target="_blank" rel="noopener noreferrer">대한성서공회 이용 안내</a></p>
+</details>
+</main>
+<script type="text/plain" id="index">
+GEN 창세기 31 25 24 26 32 22 24 22 29 32 32 20 18 24 21 16 27 33 38 18 34 24 20 67 34 35 46 22 35 43 55 32 20 31 29 43 36 30 23 23 57 38 34 34 28 34 31 22 33 26
+EXO 출애굽기 22 25 22 31 23 30 25 32 35 29 10 51 22 31 27 36 16 27 25 26 36 31 33 18 40 37 21 43 46 38 18 35 23 35 35 38 29 31 43 38
+LEV 레위기 17 16 17 35 19 30 38 36 24 20 47 8 59 57 33 34 16 30 37 27 24 33 44 23 55 46 34
+NUM 민수기 54 34 51 49 31 27 89 26 23 36 35 16 33 45 41 50 13 32 22 29 35 41 30 25 18 65 23 31 40 16 54 42 56 29 34 13
+DEU 신명기 46 37 29 49 33 25 26 20 29 22 32 32 18 29 23 22 20 22 21 20 23 30 25 22 19 19 26 68 29 20 30 52 29 12
+JOS 여호수아 18 24 17 24 15 27 26 35 27 43 23 24 33 15 63 10 18 28 51 9 45 34 16 33
+JDG 사사기 36 23 31 24 31 40 25 35 57 18 40 15 25 20 20 31 13 31 30 48 25
+RUT 룻기 22 23 18 22
+1SA 사무엘상 28 36 21 22 12 21 17 22 27 27 15 25 23 52 35 23 58 30 24 42 15 23 29 22 44 25 12 25 11 31 13
+2SA 사무엘하 27 32 39 12 25 23 29 18 13 19 27 31 39 33 37 23 29 33 43 26 22 51 39 25
+1KI 열왕기상 53 46 28 34 18 38 51 66 28 29 43 33 34 31 34 34 24 46 21 43 29 53
+2KI 열왕기하 18 25 27 44 27 33 20 29 37 36 21 21 25 29 38 20 41 37 37 21 26 20 37 20 30
+1CH 역대상 54 55 24 43 26 81 40 40 44 14 47 40 14 17 29 43 27 17 19 8 30 19 32 31 31 32 34 21 30
+2CH 역대하 17 18 17 22 14 42 22 18 31 19 23 16 22 15 19 14 19 34 11 37 20 12 21 27 28 23 9 27 36 27 21 33 25 33 27 23
+EZR 에스라 11 70 13 24 17 22 28 36 15 44
+NEH 느헤미야 11 20 32 23 19 19 73 18 38 39 36 47 31
+EST 에스더 22 23 15 17 14 14 10 17 32 3
+JOB 욥기 22 13 26 21 27 30 21 22 35 22 20 25 28 22 35 22 16 21 29 29 34 30 17 25 6 14 23 28 25 31 40 22 33 37 16 33 24 41 30 24 34 17
+PSA 시편 6 12 8 8 12 10 17 9 20 18 7 8 6 7 5 11 15 50 14 9 13 31 6 10 22 12 14 9 11 12 24 11 22 22 28 12 40 22 13 17 13 11 5 26 17 11 9 14 20 23 19 9 6 7 23 13 11 11 17 12 8 12 11 10 13 20 7 35 36 5 24 20 28 23 10 12 20 72 13 19 16 8 18 12 13 17 7 18 52 17 16 15 5 23 11 13 12 9 9 5 8 28 22 35 45 48 43 13 31 7 10 10 9 8 18 19 2 29 176 7 8 9 4 8 5 6 5 6 8 8 3 18 3 3 21 26 9 8 24 13 10 7 12 15 21 10 20 14 9 6
+PRO 잠언 33 22 35 27 23 35 27 36 18 32 31 28 25 35 33 33 28 24 29 30 31 29 35 34 28 28 27 28 27 33 31
+ECC 전도서 18 26 22 16 20 12 29 17 18 20 10 14
+SNG 아가 17 17 11 16 16 13 13 14
+ISA 이사야 31 22 26 6 30 13 25 22 21 34 16 6 22 32 9 14 14 7 25 6 17 25 18 23 12 21 13 29 24 33 9 20 24 17 10 22 38 22 8 31 29 25 28 28 25 13 15 22 26 11 23 15 12 17 13 12 21 14 21 22 11 12 19 12 25 24
+JER 예레미야 19 37 25 31 31 30 34 22 26 25 23 17 27 22 21 21 27 23 15 18 14 30 40 10 38 24 22 17 32 24 40 44 26 22 19 32 21 28 18 16 18 22 13 30 5 28 7 47 39 46 64 34
+LAM 예레미야애가 22 22 66 22 22
+EZK 에스겔 28 10 27 17 17 14 27 18 11 22 25 28 23 23 8 63 24 32 14 49 32 31 49 27 17 21 36 26 21 26 18 32 33 31 15 38 28 23 29 49 26 20 27 31 25 24 23 35
+DAN 다니엘 21 49 30 37 31 28 28 27 27 21 45 13
+HOS 호세아 11 23 5 19 15 11 16 14 17 15 12 14 16 9
+JOL 요엘 20 32 21
+AMO 아모스 15 16 15 13 27 14 17 14 15
+OBA 오바댜 21
+JON 요나 17 10 10 11
+MIC 미가 16 13 12 13 15 16 20
+NAM 나훔 15 13 19
+HAB 하박국 17 20 19
+ZEP 스바냐 18 15 20
+HAG 학개 15 23
+ZEC 스가랴 21 13 10 14 11 15 14 23 17 12 17 14 9 21
+MAL 말라기 14 17 18 6
+MAT 마태복음 25 23 17 25 48 34 29 34 38 42 30 50 58 36 39 28 27 35 30 34 46 46 39 51 46 75 66 20
+MRK 마가복음 45 28 35 41 43 56 37 38 50 52 33 44 37 72 47 20
+LUK 누가복음 80 52 38 44 39 49 50 56 62 42 54 59 35 35 32 31 37 43 48 47 38 71 56 53
+JHN 요한복음 51 25 36 54 47 71 53 59 41 42 57 50 38 31 27 33 26 40 42 31 25
+ACT 사도행전 26 47 26 37 42 15 60 40 43 48 30 25 52 28 41 40 34 28 41 38 40 30 35 27 27 32 44 31
+ROM 로마서 32 29 31 25 21 23 25 39 33 21 36 21 14 23 33 27
+1CO 고린도전서 31 16 23 21 13 20 40 13 27 33 34 31 13 40 58 24
+2CO 고린도후서 24 17 18 18 21 18 16 24 15 18 33 21 13
+GAL 갈라디아서 24 21 29 31 26 18
+EPH 에베소서 23 22 21 32 33 24
+PHP 빌립보서 30 30 21 23
+COL 골로새서 29 23 25 18
+1TH 데살로니가전서 10 20 13 18 28
+2TH 데살로니가후서 12 17 18
+1TI 디모데전서 20 15 16 16 25 21
+2TI 디모데후서 18 26 17 22
+TIT 디도서 16 15 15
+PHM 빌레몬서 25
+HEB 히브리서 14 18 19 16 14 20 28 13 28 39 40 29 25
+JAS 야고보서 27 26 18 17 20
+1PE 베드로전서 25 25 22 19 14
+2PE 베드로후서 21 22 18
+1JN 요한1서 10 29 24 21 21
+2JN 요한2서 13
+3JN 요한3서 15
+JUD 유다서 25
+REV 요한계시록 20 29 22 11 14 17 17 13 21 11 19 17 18 20 8 21 18 24 21 15 27 21
+</script>
+<script type="application/json" id="personal">[]</script>
+<script id="logic">
+"use strict";
+const $ = id => document.getElementById(id);
+const books = $("index").textContent.trim().split("\n").map(row => {
+  const [code, name, ...numbers] = row.trim().split(/\s+/);
+  return {code, name, limits: numbers.map(Number)};
+});
+const shortNames = "창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 왕하 대상 대하 스 느 에 욥 시 잠 전 아 사 렘 애 겔 단 호 욜 암 옵 욘 미 나 합 습 학 슥 말 마 막 눅 요 행 롬 고전 고후 갈 엡 빌 골 살전 살후 딤전 딤후 딛 몬 히 약 벧전 벧후 요일 요이 요삼 유 계".split(" ");
+const byName = new Map();
+books.forEach((book, i) => {
+  for (const name of [book.name, book.code, shortNames[i]]) byName.set(name, book);
+});
+["요한일서", "요한이서", "요한삼서"].forEach((name, i) => byName.set(name, books[61+i]));
+const example = new Map([["1TH.5.16","항상 기뻐하라"], ["1TH.5.17","쉬지 말고 기도하라"]]);
+const personal = new Map(JSON.parse($("personal").textContent));
+const textFor = id => personal.get(id) ?? example.get(id) ?? "";
+const seq = (low, high) => Array.from({length:high-low+1}, (_, i) => low+i);
+const key = (code, ch, v) => [code,ch,v].join(".");
+const span = (a,b) => a === b ? a+"절" : a+"–"+b+"절";
+function different(expected, answer) {
+  const a = Array.from(expected.normalize("NFC"));
+  const b = Array.from(answer.normalize("NFC"));
+  for (let i=0; i<Math.max(a.length,b.length); i++) {
+    if (a[i] !== b[i]) return {position:i+1, expected:a[i], actual:b[i]};
+  }
+  return null;
+}
+function visibleChar(c) {
+  if (c === undefined) return "문장 끝";
+  if (c === " ") return "공백";
+  if (c === "\n") return "줄바꿈";
+  if (c === "\t") return "탭";
+  if (c === "\u00a0") return "줄 바꿈 없는 공백";
+  if (c === "\u200b") return "폭 없는 공백";
+  return "‘"+c+"’";
+}
+function numberedPassage(raw, first, last, maxVerse) {
+  const supers = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+  const source = raw.replace(/\r\n?/g,"\n").replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, s =>
+    "\n["+Array.from(s, c => supers.indexOf(c)).join("")+"] ");
+  const joined = source.replace(/^[ \t]*(\[\d{1,3}\]|\d{1,3}(?:절|[.)])?)[ \t]*\n[ \t]*(?=\S)/gm,"$1 ");
+  const lines = joined.trim().split(/\n+/).map(s => s.trim()).filter(Boolean);
+  const wanted = seq(first,last);
+  const marker = /^(?:\[(\d{1,3})\]|(\d{1,3})(?:절|[.)])?)(?=\s|[가-힣(“"'‘]|$)\s*/u;
+  const firstMarks = lines.map(line => line.match(marker));
+  if (!firstMarks.some(Boolean)) {
+    if (lines.length !== wanted.length) throw Error("선택한 "+wanted.length+"절을 한 줄에 한 절씩 붙여 넣어 줘.");
+    return lines;
+  }
+  if (!firstMarks.every(Boolean)) throw Error("절 번호가 섞여 있어. 소제목을 빼고 각 줄 앞에 절 번호를 넣어 줘.");
+  const parts = new Map();
+  let previous = 0;
+  function put(num, body) {
+    if (num<1 || num>maxVerse || (previous && num!==previous+1) || !body.trim()) throw Error(num+"절의 번호와 내용을 확인해 줘.");
+    parts.set(num,body.trim()); previous=num;
+  }
+  const onlyLeading = new Set(firstMarks.map(m => Number(m[1] || m[2])));
+  const mayContainInline = lines.some((line,i) =>
+    /(?:\s|[가-힣])(?:\[\d{1,3}\]|\d{1,3}(?:절|[.)])?)(?=\s|[가-힣])/u.test(line.slice(firstMarks[i][0].length)));
+  if (wanted.every(n => onlyLeading.has(n)) && !mayContainInline) {
+    lines.forEach((line,i) => put(Number(firstMarks[i][1] || firstMarks[i][2]), line.slice(firstMarks[i][0].length)));
+  } else {
+    const tokens = /(?:\[(\d{1,3})\]|\b(\d{1,3})(?:절|[.)])?)(?=\s|[가-힣(“"'‘]|$)\s*/gu;
+    for (const line of lines) {
+      const marks = Array.from(line.matchAll(tokens));
+      for (let i=0; i<marks.length; i++) {
+        const m = marks[i];
+        put(Number(m[1] || m[2]), line.slice(m.index+m[0].length, marks[i+1]?.index ?? line.length));
+      }
+    }
+  }
+  return wanted.map(n => {
+    if (!parts.has(n)) throw Error(n+"절을 찾지 못했어. 번호를 확인해 줘.");
+    return parts.get(n);
+  });
+}
+function parseFile(source) {
+  const entries = new Map();
+  for (const [i,line] of source.replace(/^\uFEFF/,"").split(/\r\n?|\n/).entries()) {
+    if (!line.trim()) continue;
+    const match = line.match(/^(.+?)\s*(\d+):(\d+)[ \t](.*)$/u);
+    const book = match && byName.get(match[1].trim());
+    const ch = Number(match?.[2]), v = Number(match?.[3]);
+    if (!book || !book.limits[ch-1] || v<1 || v>book.limits[ch-1] || !match[4].trim()) {
+      throw Error((i+1)+"번째 줄의 성경책·장:절·본문을 확인해 줘. 아직 가져온 절은 없어.");
+    }
+    const id = key(book.code,ch,v);
+    if (entries.has(id) && entries.get(id)!==match[4]) throw Error((i+1)+"번째 줄에 같은 절의 서로 다른 본문이 있어.");
+    entries.set(id,match[4]);
+  }
+  if (!entries.size) throw Error("파일에서 본문을 찾지 못했어.");
+  return entries;
+}
+let db = null;
+const localKey = "nkrv-recall-notebook-entries-v1";
+let local = null;
+function tryLocal() {
+  if (db) db.close();
+  db=null;
+  try {
+    local = window.localStorage;
+    const existing = readLocal();
+    local.setItem(localKey+"-probe","1"); local.removeItem(localKey+"-probe");
+    for (const [id,body] of existing) personal.set(id,body);
+    $("storage").textContent="";
+  } catch { local=null; temporaryStorage(); }
+}
+function readLocal() {
+  return new Map(JSON.parse(local.getItem(localKey) || "[]"));
+}
+const initialLayout = document.querySelector("main").outerHTML;
+function temporaryStorage() {
+  if (db) db.close();
+  db = null;
+  $("storage").textContent = "지금은 본문이 이 화면에만 보관돼. 닫기 전에 ‘PC용 앱 저장’이나 ‘보관할 본문 보기’를 이용해.";
+}
+async function openStorage() {
+  const database = await new Promise((resolve,reject) => {
+    const req = window.indexedDB.open("nkrv-recall-notebook-v1",1);
+    let blocked = false;
+    req.onupgradeneeded = () => req.result.createObjectStore("verses",{keyPath:"id"});
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => { blocked = true; reject(Error("blocked")); };
+    req.onsuccess = () => { if (blocked) req.result.close(); else resolve(req.result); };
+  });
+  db = database;
+  db.onversionchange = tryLocal;
+  const records = await new Promise((resolve,reject) => {
+    const req = database.transaction("verses").objectStore("verses").getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  for (const {id,body} of records) if (typeof body === "string") personal.set(id,body);
+  $("storage").textContent = "";
+}
+async function commit(changes, onlyNew=false) {
+  const skip = new Set();
+  if (db && changes.size) {
+    try {
+      await new Promise((resolve,reject) => {
+        const tx = db.transaction("verses","readwrite");
+        tx.oncomplete = resolve;
+        tx.onabort = () => reject(tx.error);
+        const store = tx.objectStore("verses");
+        for (const [id,body] of changes) {
+          if (!onlyNew) { store.put({id,body}); continue; }
+          const req = store.add({id,body});
+          req.onerror = e => {
+            if (req.error.name === "ConstraintError") {
+              e.preventDefault(); e.stopPropagation(); skip.add(id);
+              const saved = store.get(id);
+              saved.onsuccess = () => { if (saved.result) personal.set(id,saved.result.body); };
+            }
+          };
+        }
+      });
+    } catch { skip.clear(); tryLocal(); }
+  }
+  if (local && changes.size) {
+    try {
+      const entries=readLocal();
+      for (const [id,body] of changes) {
+        if (onlyNew && entries.has(id)) { skip.add(id); personal.set(id,entries.get(id)); }
+        else entries.set(id,body);
+      }
+      local.setItem(localKey,JSON.stringify([...entries]));
+    } catch { local=null; temporaryStorage(); }
+  }
+  for (const [id,body] of changes) if (!skip.has(id)) personal.set(id,body);
+  return changes.size-skip.size;
+}
+function saveOffline() {
+  const page = document.implementation.createHTMLDocument("말씀 암송장");
+  page.documentElement.lang = "ko";
+  page.head.append(...Array.from(document.querySelectorAll("head meta[charset],head meta[name=viewport],head style#skin"), n=>page.importNode(n,true)));
+  page.body.innerHTML = initialLayout;
+  const saved = page.createElement("script");
+  saved.id = "personal"; saved.type = "application/json";
+  saved.textContent = JSON.stringify([...personal]).replace(/</g,"\\u003c");
+  page.body.append(page.importNode($("index"),true),saved,page.importNode($("logic"),true));
+  const blob = new Blob(["<!doctype html>\n",page.documentElement.outerHTML],{type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="bible-memory.html"; document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+let step = 1, phase = "setup", editingSession = false, locked = false;
+const currentBook = () => byName.get($("book").value);
+const chapter = () => Number($("chapter").value);
+const first = () => Number($("first").value);
+const last = () => Number($("last").value);
+const total = () => last()-first()+1;
+const idFor = v => key(currentBook().code, chapter(), v);
+const bodyFor = v => textFor(idFor(v));
+function reference(end=last()) {
+  const b=currentBook();
+  return b.name+" "+chapter()+(b.code==="PSA"?"편 ":"장 ")+span(first(),end);
+}
+function setOptions(node, pairs, wanted) {
+  node.replaceChildren(...pairs.map(([value,label])=>new Option(label,value)));
+  node.value=String(wanted);
+  if(node.selectedIndex<0) node.selectedIndex=0;
+}
+function refreshBooks(wanted) {
+  const list=$("testament").value==="old"?books.slice(0,39):books.slice(39);
+  setOptions($("book"),list.map(b=>[b.code,b.name]),wanted ?? list[0].code);
+}
+function refreshChapters(wanted=1) {
+  const b=currentBook(), unit=b.code==="PSA"?"편":"장";
+  $("chapterLabel").querySelector("span").textContent=unit;
+  setOptions($("chapter"),seq(1,b.limits.length).map(i=>[i,i+unit]),wanted);
+}
+function refreshLast(wanted) {
+  const max=currentBook().limits[chapter()-1];
+  setOptions($("last"),seq(first(),max).map(i=>[i,i+"절"]),Math.max(first(),Math.min(wanted,max)));
+  summary();
+}
+function refreshVerses(a=1,b=1) {
+  const max=currentBook().limits[chapter()-1];
+  setOptions($("first"),seq(1,max).map(i=>[i,i+"절"]),a);
+  refreshLast(b);
+}
+function summary() {
+  const n=seq(first(),last()).filter(v=>bodyFor(v)).length;
+  $("selection").textContent=reference();
+  $("available").textContent=n===total()?"선택한 "+n+"절 모두 준비됐어.":total()+"절 중 "+n+"절 준비됨 · 남은 "+(total()-n)+"절을 등록해 줘.";
+  $("start").textContent=n===total()?"암송 시작":"본문 등록하고 시작";
+}
+function show(id,focus=true) {
+  for (const section of ["setup","editor","practice"]) $(section).hidden=section!==id;
+  if (focus) requestAnimationFrame(()=>$(id).querySelector("h2").focus());
+}
+function toSetup() {
+  phase="setup"; step=1;
+  $("lines").replaceChildren(); $("editFields").replaceChildren();
+  summary(); show("setup");
+}
+function inputField(container, verse, value, labelText) {
+  const label=document.createElement("label");
+  label.className="field"; label.textContent=verse+"절";
+  const input=document.createElement("textarea");
+  input.value=value; input.rows=2; input.spellcheck=false;
+  input.setAttribute("autocorrect","off"); input.setAttribute("autocapitalize","off");
+  input.autocomplete="off"; input.setAttribute("aria-label",verse+"절 "+labelText);
+  label.append(input); container.append(label);
+}
+function openEditor(inSession) {
+  editingSession=inSession; phase="editor";
+  $("lines").replaceChildren(); $("editError").textContent=""; $("bulk").value="";
+  $("bulkDetails").open=false; $("editRef").textContent=reference();
+  $("official").href="https://bible.bskorea.or.kr/bible/NKRV/"+currentBook().code+"."+chapter();
+  $("editFields").replaceChildren();
+  for(const v of seq(first(),last())) inputField($("editFields"),v,bodyFor(v),"채점 기준 본문");
+  show("editor");
+}
+function draw(mode, message="") {
+  phase=mode;
+  const done=mode==="done", reading=mode==="read", end=first()+step-1;
+  $("editFields").replaceChildren(); $("bulk").value=""; $("lines").replaceChildren();
+  $("counter").textContent=done?"암송 완료":(reading?"본문 읽기":"기억해서 쓰기")+" · "+step+" / "+total()+"단계";
+  $("practiceRef").textContent=reference(done?last():end);
+  $("meter").max=total(); $("meter").value=done?total():step-1;
+  $("feedback").textContent=message;
+  $("instruction").textContent=done?"선택한 "+total()+"절을 처음부터 끝까지 정확히 썼어.":
+    reading?"본문을 읽고 준비되면 가린 뒤 써 봐.":"절 번호는 빼고, 보았던 본문을 순서대로 적어 줘.";
+  $("editMid").hidden=done;
+  $("next").textContent=done?"같은 범위 다시 연습":reading?"다음 · 가리고 쓰기":"정답 확인";
+  if (!done) for(const v of seq(first(),end)) {
+    if (!reading) { inputField($("lines"),v,"","암송 답안"); continue; }
+    const row=document.createElement("div"), n=document.createElement("span"), body=document.createElement("span");
+    row.className="line"; n.className="num"; n.textContent=v+"절";
+    body.className="scripture"; body.textContent=bodyFor(v);
+    row.append(n,body); $("lines").append(row);
+  }
+  show("practice",mode!=="write");
+  if (mode==="write") requestAnimationFrame(()=>$("lines").querySelector("textarea")?.focus());
+}
+function checkAnswers() {
+  const wrong=[];
+  Array.from($("lines").querySelectorAll("textarea")).forEach((input,i)=>{
+    const verse=first()+i, diff=different(bodyFor(verse),input.value);
+    if (diff) wrong.push({verse,...diff});
+  });
+  if (wrong.length) {
+    const d=wrong[0], extra=wrong.length>1?" 외 "+(wrong.length-1)+"절":"";
+    draw("read",d.verse+"절"+extra+"을 다시 읽어 봐.\n"+d.verse+"절 "+d.position+"번째부터 달라. 본문은 "+visibleChar(d.expected)+", 답안은 "+visibleChar(d.actual)+".");
+  } else if (step===total()) draw("done");
+  else { step++; draw("read","정확해. "+(first()+step-1)+"절을 더해서 읽어 봐."); }
+}
+async function busy(fn) {
+  if (locked) return;
+  locked=true; $("app").disabled=true;
+  try { await fn(); } finally { locked=false; $("app").disabled=false; }
+}
+$("testament").onchange=()=>{refreshBooks();refreshChapters();refreshVerses();};
+$("book").onchange=()=>{refreshChapters();refreshVerses();};
+$("chapter").onchange=()=>refreshVerses();
+$("first").onchange=()=>refreshLast(last());
+$("last").onchange=summary;
+$("start").onclick=()=>{
+  step=1;
+  if(seq(first(),last()).every(v=>bodyFor(v))) draw("read"); else openEditor(false);
+};
+$("editSetup").onclick=()=>{step=1;openEditor(false);};
+$("editMid").onclick=()=>openEditor(true);
+$("choose").onclick=toSetup;
+$("cancel").onclick=()=>editingSession?draw("read"):toSetup();
+$("next").onclick=()=>{
+  if(phase==="read") draw("write");
+  else if(phase==="write") checkAnswers();
+  else if(phase==="done"){step=1;draw("read");}
+};
+$("split").onclick=()=>{
+  try {
+    const values=numberedPassage($("bulk").value,first(),last(),currentBook().limits[chapter()-1]);
+    $("editFields").querySelectorAll("textarea").forEach((el,i)=>{el.value=values[i];});
+    $("bulkDetails").open=false; $("editError").textContent="절별로 나눴어. 본문을 확인하고 저장해 줘.";
+  } catch(e) { $("editError").textContent=e.message; }
+};
+$("save").onclick=()=>busy(async()=>{
+  const fields=Array.from($("editFields").querySelectorAll("textarea")), changes=new Map();
+  let earliest=step;
+  for(const [i,input] of fields.entries()){
+    const v=first()+i, body=input.value;
+    if(!body.trim() || /[\r\n]/.test(body)){
+      $("editError").textContent=v+"절 본문을 한 줄로 채워 줘.";
+      requestAnimationFrame(()=>input.focus()); return;
+    }
+    if(body!==bodyFor(v)){changes.set(idFor(v),body);earliest=Math.min(earliest,i+1);}
+  }
+  await commit(changes);
+  step=editingSession?earliest:1; draw("read");
+});
+$("file").onchange=()=>busy(async()=>{
+  const file=$("file").files[0]; if(!file)return;
+  try {
+    const rows=parseFile(await file.text());
+    const additions=new Map([...rows].filter(([id])=>!personal.has(id)));
+    const added=await commit(additions,true);
+    $("fileMessage").textContent=added+"절을 가져왔어. 이미 등록한 "+(rows.size-added)+"절은 유지했어.";
+    $("copyLabel").hidden=true; summary();
+  } catch(e){$("fileMessage").textContent=e.message;}
+  finally{$("file").value="";}
+});
+$("exportText").onclick=()=>{
+  const rows=[];
+  for(const b of books) b.limits.forEach((limit,i)=>{
+    for(let v=1;v<=limit;v++){
+      const body=textFor(key(b.code,i+1,v));
+      if(body) rows.push(b.name+" "+(i+1)+":"+v+"\t"+body);
+    }
+  });
+  $("backup").value=rows.join("\n");$("copyLabel").hidden=false;$("backup").select();
+};
+$("offline").onclick=()=>{
+  try { saveOffline(); } catch { $("fileMessage").textContent="이 화면에서 파일 저장을 열 수 없어. ‘보관할 본문 보기’에서 내용을 복사해 줘."; }
+};
+$("testament").value="new";refreshBooks("1TH");refreshChapters(5);refreshVerses(16,17);
+openStorage().catch(tryLocal).finally(()=>{summary();$("app").disabled=false;});
+</script>
+</body></html>
